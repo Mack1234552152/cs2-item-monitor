@@ -3,14 +3,15 @@ const config = require('../../config/config.json');
 
 class CSQAQApi {
   constructor() {
-    this.baseUrl = config.api.csqaq.baseUrl;
+    this.baseUrl = config.api.csqaq.baseUrl || 'https://api.csqaq.com/api/v1';
     this.token = config.api.csqaq.token;
     this.client = axios.create({
       baseURL: this.baseUrl,
-      timeout: 10000,
+      timeout: 30000,
       headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Content-Type': 'application/json'
+        'ApiToken': this.token,
+        'Content-Type': 'application/json',
+        'User-Agent': 'CS2-Price-Monitor/1.0.0'
       }
     });
   }
@@ -23,10 +24,9 @@ class CSQAQApi {
    */
   async getItemData(itemId, platform = 'steam') {
     try {
-      const response = await this.client.get(`/item/${itemId}`, {
+      const response = await this.client.get(`/skin/${itemId}`, {
         params: {
-          platform: platform,
-          token: this.token
+          platform: platform
         }
       });
       return response.data;
@@ -63,13 +63,12 @@ class CSQAQApi {
    * @param {number} days - 历史天数
    * @returns {Promise<Object>}
    */
-  async getItemChartData(itemId, platform = 'steam', days = 30) {
+  async getItemChartData(itemId, platform = 'steam', days = 180) {
     try {
-      const response = await this.client.get(`/item/${itemId}/chart`, {
+      const response = await this.client.get(`/skin/${itemId}/trend`, {
         params: {
           platform: platform,
-          days: days,
-          token: this.token
+          days: days
         }
       });
       return response.data;

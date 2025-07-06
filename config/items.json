@@ -7,8 +7,9 @@
       "enabled": true,
       "platforms": ["youyoupin", "buff", "steam"],
       "wear_ranges": ["FT", "MW", "FN"],
-      "notify_threshold": 0.9,
-      "priority": "high"
+      "notify_threshold": 1.0,
+      "priority": "high",
+      "description": "当价格低于或等于六个月最低价时发送预警"
     },
     {
       "id": 2,
@@ -17,8 +18,9 @@
       "enabled": true,
       "platforms": ["youyoupin", "buff", "steam"],
       "wear_ranges": ["FT", "MW", "FN"],
-      "notify_threshold": 0.95,
-      "priority": "high"
+      "notify_threshold": 1.0,
+      "priority": "high",
+      "description": "当价格低于或等于六个月最低价时发送预警"
     },
     {
       "id": 3,
@@ -27,8 +29,9 @@
       "enabled": true,
       "platforms": ["youyoupin", "buff", "steam"],
       "wear_ranges": ["FT", "MW", "FN"],
-      "notify_threshold": 0.9,
-      "priority": "high"
+      "notify_threshold": 1.0,
+      "priority": "high",
+      "description": "当价格低于或等于六个月最低价时发送预警"
     }
   ],
   "categories": {

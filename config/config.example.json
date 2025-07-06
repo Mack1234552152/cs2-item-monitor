@@ -1,7 +1,7 @@
 {
   "api": {
     "csqaq": {
-      "baseUrl": "https://api.csqaq.com",
+      "baseUrl": "https://api.csqaq.com/api/v1",
       "token": "YOUR_CSQAQ_TOKEN_HERE",
       "whitelist_ip": "YOUR_IP_HERE"
     }
@@ -15,13 +15,15 @@
   "monitor": {
     "interval": 300000,
     "platforms": ["youyoupin", "buff", "steam"],
-    "priceThreshold": 0.95,
+    "priceThreshold": 1.0,
     "retryAttempts": 3,
-    "retryDelay": 5000
+    "retryDelay": 5000,
+    "historyDays": 180,
+    "comment": "priceThreshold=1.0 means alert when current price is at or below 6-month low"
   },
   "storage": {
     "dataPath": "./data/price-history.json",
-    "maxHistoryDays": 30
+    "maxHistoryDays": 180
   },
   "logging": {
     "level": "info",

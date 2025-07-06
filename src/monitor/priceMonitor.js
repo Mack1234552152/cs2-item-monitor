@@ -126,6 +126,15 @@ class PriceMonitor {
         return null;
       }
 
+      // 获取六个月历史价格数据
+      let sixMonthLow = null;
+      try {
+        const chartData = await this.api.getItemChartData(item.id, platform, 180);
+        sixMonthLow = this.calculateSixMonthLow(chartData);
+      } catch (error) {
+        console.warn(`获取历史数据失败，使用本地历史数据 [${item.name} - ${platform}]:`, error.message);
+      }
+
       // 保存价格历史
       await this.dataManager.savePriceHistory(item.id, platform, {
         price: currentPrice,
@@ -134,21 +143,21 @@ class PriceMonitor {
         source: 'csqaq_api'
       });
 
-      // 获取历史最低价
-      const historicalLow = await this.dataManager.getHistoricalLow(item.id, platform);
+      // 如果无法获取API历史数据，使用本地历史最低价
+      const referencePrice = sixMonthLow || await this.dataManager.getHistoricalLow(item.id, platform, 180);
       
-      if (!historicalLow) {
+      if (!referencePrice) {
         console.log(`首次记录价格 [${item.name} - ${platform}]: ¥${currentPrice}`);
         return null;
       }
 
-      // 检查是否触发价格预警
+      // 检查是否触发价格预警（当前价格低于六个月最低价格）
       const threshold = item.notify_threshold || this.config.priceThreshold;
-      const priceRatio = currentPrice / historicalLow;
+      const priceRatio = currentPrice / referencePrice;
 
       if (priceRatio <= threshold) {
         const discount = 1 - priceRatio;
-        console.log(`🚨 价格预警触发 [${item.name} - ${platform}]: 当前¥${currentPrice}, 历史最低¥${historicalLow}, 折扣${(discount * 100).toFixed(1)}%`);
+        console.log(`🚨 价格预警触发 [${item.name} - ${platform}]: 当前¥${currentPrice}, 六个月最低¥${referencePrice}, 折扣${(discount * 100).toFixed(1)}%`);
 
         // 创建预警记录
         const alert = await this.dataManager.saveAlert({
@@ -156,14 +165,15 @@ class PriceMonitor {
           itemName: item.name,
           platform: platform,
           currentPrice: currentPrice,
-          historicalLow: historicalLow,
-          discount: discount
+          historicalLow: referencePrice,
+          discount: discount,
+          period: '6months'
         });
 
         return alert;
       }
 
-      console.log(`✓ 价格正常 [${item.name} - ${platform}]: ¥${currentPrice} (历史最低: ¥${historicalLow})`);
+      console.log(`✓ 价格正常 [${item.name} - ${platform}]: ¥${currentPrice} (六个月最低: ¥${referencePrice})`);
       return null;
 
     } catch (error) {
@@ -190,6 +200,33 @@ class PriceMonitor {
       default:
         return data.price || data.current_price || data.lowest_price;
     }
+  }
+
+  /**
+   * 计算六个月历史数据中的最低价
+   * @param {Object} chartData - 图表数据
+   * @returns {number|null}
+   */
+  calculateSixMonthLow(chartData) {
+    if (!chartData || !chartData.data || !Array.isArray(chartData.data)) {
+      return null;
+    }
+
+    const priceData = chartData.data;
+    if (priceData.length === 0) {
+      return null;
+    }
+
+    // 提取所有价格并找到最低价
+    const prices = priceData
+      .map(item => item.price || item.lowest_price || item.min_price)
+      .filter(price => price && price > 0);
+
+    if (prices.length === 0) {
+      return null;
+    }
+
+    return Math.min(...prices);
   }
 
   /**

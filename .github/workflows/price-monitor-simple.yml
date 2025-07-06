@@ -31,7 +31,7 @@ jobs:
         {
           "api": {
             "csqaq": {
-              "baseUrl": "https://api.csqaq.com",
+              "baseUrl": "https://api.csqaq.com/api/v1",
               "token": "${{ secrets.CSQAQ_TOKEN }}",
               "whitelist_ip": "${{ secrets.CSQAQ_WHITELIST_IP }}"
             }
@@ -45,13 +45,14 @@ jobs:
           "monitor": {
             "interval": 300000,
             "platforms": ["youyoupin", "buff", "steam"],
-            "priceThreshold": 0.95,
+            "priceThreshold": 1.0,
             "retryAttempts": 3,
-            "retryDelay": 5000
+            "retryDelay": 5000,
+            "historyDays": 180
           },
           "storage": {
             "dataPath": "./data/price-history.json",
-            "maxHistoryDays": 30
+            "maxHistoryDays": 180
           },
           "logging": {
             "level": "info",

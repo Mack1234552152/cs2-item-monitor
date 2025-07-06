@@ -146,9 +146,10 @@ class DataManager {
    * 获取历史最低价
    * @param {number} itemId - 饰品ID
    * @param {string} platform - 平台
+   * @param {number} days - 历史天数，默认所有历史
    * @returns {Promise<number|null>}
    */
-  async getHistoricalLow(itemId, platform) {
+  async getHistoricalLow(itemId, platform, days = null) {
     const data = await this.loadData();
     const itemKey = `${itemId}_${platform}`;
     
@@ -156,6 +157,23 @@ class DataManager {
       return null;
     }
 
+    // 如果指定了天数，计算指定期间的最低价
+    if (days !== null) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const recentHistory = data.items[itemKey].priceHistory.filter(entry => 
+        new Date(entry.timestamp) >= cutoffDate
+      );
+      
+      if (recentHistory.length === 0) {
+        return null;
+      }
+      
+      return Math.min(...recentHistory.map(entry => entry.price));
+    }
+
+    // 返回全部历史的最低价
     return data.items[itemKey].historicalLow;
   }
 
