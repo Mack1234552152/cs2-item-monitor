@@ -4,6 +4,10 @@ on:
   schedule:
     # 每5分钟运行一次
     - cron: '*/5 * * * *'
+    # 每天早上8点运行日报
+    - cron: '0 8 * * *'
+    # 每周日凌晨2点运行维护
+    - cron: '0 2 * * 0'
   
   # 允许手动触发
   workflow_dispatch:
@@ -69,7 +73,7 @@ jobs:
       run: mkdir -p data logs
       
     - name: Restore price history data
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v4
       with:
         path: data/price-history.json
         key: price-history-${{ github.run_id }}
@@ -90,7 +94,7 @@ jobs:
         retention-days: 7
         
     - name: Save price history data
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if: always()
       with:
         path: data/price-history.json
@@ -99,8 +103,8 @@ jobs:
   # 每日报告任务
   daily-report:
     runs-on: ubuntu-latest
-    # 每天早上8点运行
-    if: github.event.schedule == '0 8 * * *'
+    # 只在定时任务或手动触发时运行
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Checkout code
@@ -151,7 +155,7 @@ jobs:
         EOF
         
     - name: Restore price history data
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v4
       with:
         path: data/price-history.json
         key: price-history-
@@ -173,8 +177,8 @@ jobs:
   # 系统维护任务
   maintenance:
     runs-on: ubuntu-latest
-    # 每周日凌晨2点运行
-    if: github.event.schedule == '0 2 * * 0'
+    # 只在定时任务或手动触发时运行
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     
     steps:
     - name: Checkout code
@@ -225,7 +229,7 @@ jobs:
         EOF
         
     - name: Restore price history data
-      uses: actions/cache@v3
+      uses: actions/cache/restore@v4
       with:
         path: data/price-history.json
         key: price-history-
@@ -245,7 +249,7 @@ jobs:
       "
       
     - name: Save cleaned data
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if: always()
       with:
         path: data/price-history.json
