@@ -25,9 +25,9 @@
    
    在你的GitHub仓库中，进入 `Settings > Secrets and variables > Actions`，添加以下secrets：
    
-   - `CSQAQ_TOKEN`: 你的CSQAQ API令牌（JOVN71P7T388E2N1G1H6W5A0）
-   - `CSQAQ_WHITELIST_IP`: 你的IP白名单（111.19.113.82）
-   - `WXPUSHER_APP_TOKEN`: 你的WXpusher应用令牌（AT_dmsTcEfwKejxVc42SEVppII7gUUYCIRH）
+   - `CSQAQ_TOKEN`: 你的CSQAQ API令牌
+   - `CSQAQ_WHITELIST_IP`: 你的IP白名单
+   - `WXPUSHER_APP_TOKEN`: 你的WXpusher应用令牌
 
 3. **启用GitHub Actions**
    
