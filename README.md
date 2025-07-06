@@ -247,3 +247,5 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 ---
 
 🎮 **Happy Trading!** 愿你买到心仪的饰品！
+
+# GitHub Actions configured
