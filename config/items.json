@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "name": "AK-47 红线",
+      "market_name": "AK-47 | Redline",
+      "enabled": true,
+      "platforms": ["youyoupin", "buff", "steam"],
+      "wear_ranges": ["FT", "MW", "FN"],
+      "notify_threshold": 0.9,
+      "priority": "high"
+    },
+    {
+      "id": 2,
+      "name": "AWP 龙狙",
+      "market_name": "AWP | Dragon Lore",
+      "enabled": true,
+      "platforms": ["youyoupin", "buff", "steam"],
+      "wear_ranges": ["FT", "MW", "FN"],
+      "notify_threshold": 0.95,
+      "priority": "high"
+    },
+    {
+      "id": 3,
+      "name": "M4A4 咆哮",
+      "market_name": "M4A4 | Howl",
+      "enabled": true,
+      "platforms": ["youyoupin", "buff", "steam"],
+      "wear_ranges": ["FT", "MW", "FN"],
+      "notify_threshold": 0.9,
+      "priority": "high"
+    }
+  ],
+  "categories": {
+    "rifles": ["AK-47", "M4A4", "M4A1-S"],
+    "snipers": ["AWP"],
+    "pistols": ["Glock-18", "USP-S", "Desert Eagle"],
+    "knives": ["Karambit", "Butterfly Knife", "Bayonet"]
+  }
+}
