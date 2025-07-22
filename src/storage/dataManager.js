@@ -1,11 +1,12 @@
 const fs = require('fs').promises;
 const path = require('path');
-const config = require('../../config/config.json');
+const configManager = require('../utils/configManager');
 
 class DataManager {
   constructor() {
-    this.dataPath = path.resolve(__dirname, '../../', config.storage.dataPath);
-    this.maxHistoryDays = config.storage.maxHistoryDays;
+    this.config = configManager.getConfig();
+    this.dataPath = path.resolve(__dirname, '../../', this.config.storage.dataPath);
+    this.maxHistoryDays = this.config.storage.maxHistoryDays;
     this.ensureDataFile();
   }
 
