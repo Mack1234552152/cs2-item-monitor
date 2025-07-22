@@ -1,7 +1,7 @@
 {
   "api": {
     "csqaq": {
-      "baseUrl": "https://api.csqaq.com/api/v1",
+      "baseUrl": "https://csqaq.com/proxies/api/v1",
       "token": "YOUR_CSQAQ_TOKEN_HERE",
       "whitelist_ip": "YOUR_IP_HERE"
     }
