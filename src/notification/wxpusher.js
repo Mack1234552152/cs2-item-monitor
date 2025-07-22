@@ -1,10 +1,11 @@
 const axios = require('axios');
-const config = require('../../config/config.json');
+const configManager = require('../utils/configManager');
 
 class WXPusher {
   constructor() {
-    this.appToken = config.notification.wxpusher.appToken;
-    this.baseUrl = config.notification.wxpusher.baseUrl;
+    this.config = configManager.getConfig();
+    this.appToken = this.config.notification.wxpusher.appToken;
+    this.baseUrl = this.config.notification.wxpusher.baseUrl;
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 10000,
@@ -12,6 +13,14 @@ class WXPusher {
         'Content-Type': 'application/json'
       }
     });
+  }
+
+  /**
+   * 检查是否启用通知
+   * @returns {boolean}
+   */
+  isEnabled() {
+    return !!(this.appToken && this.appToken !== '');
   }
 
   /**
@@ -25,6 +34,11 @@ class WXPusher {
    * @returns {Promise<Object>}
    */
   async sendMessage(messageOptions) {
+    if (!this.isEnabled()) {
+      console.warn('微信推送未配置，跳过通知发送');
+      return { success: false, reason: 'wxpusher_not_configured' };
+    }
+
     try {
       const defaultOptions = {
         appToken: this.appToken,
@@ -70,6 +84,11 @@ class WXPusher {
    * @returns {Promise<Object>}
    */
   async sendPriceAlert(alertData) {
+    if (!this.isEnabled()) {
+      console.log('价格预警:', JSON.stringify(alertData, null, 2));
+      return { success: false, reason: 'wxpusher_not_configured' };
+    }
+
     const { itemName, platform, currentPrice, historicalLow, discount, url } = alertData;
     
     const content = `🚨 CS2饰品价格预警！
@@ -101,6 +120,11 @@ ${url ? `🔗 查看链接: ${url}` : ''}
    * @returns {Promise<Object>}
    */
   async sendSystemNotification(status, level = 'info') {
+    if (!this.isEnabled()) {
+      console.log(`系统通知[${level}]:`, status);
+      return { success: false, reason: 'wxpusher_not_configured' };
+    }
+
     const emoji = {
       info: 'ℹ️',
       warning: '⚠️',
@@ -130,6 +154,11 @@ ${url ? `🔗 查看链接: ${url}` : ''}
    * @returns {Promise<Object>}
    */
   async sendDailyReport(reportData) {
+    if (!this.isEnabled()) {
+      console.log('每日报告:', JSON.stringify(reportData, null, 2));
+      return { success: false, reason: 'wxpusher_not_configured' };
+    }
+
     const { monitoredItems, alerts, topDeals } = reportData;
     
     let content = `📈 CS2饰品监控日报
@@ -163,6 +192,11 @@ ${url ? `🔗 查看链接: ${url}` : ''}
    * @returns {Promise<Object>}
    */
   async sendMarkdownMessage(markdownContent, summary) {
+    if (!this.isEnabled()) {
+      console.log('Markdown消息:', { summary, markdownContent });
+      return { success: false, reason: 'wxpusher_not_configured' };
+    }
+
     return await this.sendMessage({
       content: markdownContent,
       summary: summary,
@@ -175,6 +209,10 @@ ${url ? `🔗 查看链接: ${url}` : ''}
    * @returns {Promise<Object>}
    */
   async getAppInfo() {
+    if (!this.isEnabled()) {
+      throw new Error('微信推送未配置');
+    }
+
     try {
       const response = await this.client.get(`/api/fun/app/${this.appToken}`);
       return response.data;
@@ -191,6 +229,10 @@ ${url ? `🔗 查看链接: ${url}` : ''}
    * @returns {Promise<Object>}
    */
   async getAppUsers(page = 1, pageSize = 100) {
+    if (!this.isEnabled()) {
+      return { data: { records: [] } };
+    }
+
     try {
       const response = await this.client.get('/api/fun/wxuser', {
         params: {
