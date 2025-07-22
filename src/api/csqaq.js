@@ -9,6 +9,7 @@ class CSQAQApi {
       baseURL: this.baseUrl,
       timeout: 30000,
       headers: {
+        'ApiToken': this.token,
         'Content-Type': 'application/json',
         'User-Agent': 'CS2-Price-Monitor/1.0.0',
         'Referer': 'https://csqaq.com/',
@@ -70,7 +71,10 @@ class CSQAQApi {
    */
   async getMonitorRank(params = {}) {
     try {
-      const response = await this.client.post('/monitor/rank', params);
+      const response = await this.client.post('/monitor/rank', {
+        ...params,
+        token: this.token
+      });
       return response.data;
     } catch (error) {
       console.error('获取监控排行榜数据失败:', error.message);
@@ -85,7 +89,10 @@ class CSQAQApi {
    */
   async getRankList(params = {}) {
     try {
-      const response = await this.client.post('/info/get_rank_list', params);
+      const response = await this.client.post('/info/get_rank_list', {
+        ...params,
+        token: this.token
+      });
       return response.data;
     } catch (error) {
       console.error('获取排行榜列表失败:', error.message);
