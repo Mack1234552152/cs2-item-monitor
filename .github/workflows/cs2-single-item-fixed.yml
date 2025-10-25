@@ -1,0 +1,151 @@
+name: CS2 单饰品监控 - 中文版
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 每30分钟运行一次
+  workflow_dispatch:
+    inputs:
+      item_name:
+        description: '饰品名称'
+        required: false
+        default: 'M4A4 | 活色生香 (崭新出厂)'
+        type: string
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Get current IP
+      id: get-ip
+      run: |
+        current_ip=$(curl -s ifconfig.me)
+        echo "当前IP: $current_ip"
+        echo "IP=$current_ip" >> $GITHUB_OUTPUT
+        
+    - name: Set item info
+      id: item-info
+      run: |
+        # 使用输入参数或默认值
+        item_name="${{ github.event.inputs.item_name || 'M4A4 | 活色生香 (崭新出厂)' }}"
+        
+        echo "饰品名称: $item_name"
+        echo "NAME=$item_name" >> $GITHUB_OUTPUT
+        
+    - name: Bind IP to CSQAQ
+      run: |
+        echo "正在绑定IP: ${{ steps.get-ip.outputs.IP }}"
+        
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/sys/bind_local_ip" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: JOVN71P7T388E2N1G1H6W5A0")
+        
+        echo "IP绑定响应: $response"
+        
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ IP绑定成功!"
+          bound_ip=$(echo "$response" | grep -o '当前绑定IP为：[^"]*' | cut -d'：' -f2)
+          echo "绑定IP: $bound_ip"
+        else
+          echo "❌ IP绑定失败"
+          exit 1
+        fi
+        
+    - name: Wait for IP binding
+      run: |
+        echo "等待20秒让IP绑定生效..."
+        sleep 20
+        
+    - name: Get CS2 Data and Send Notification
+      run: |
+        echo "正在获取CS2数据..."
+        
+        # 获取当前指数数据
+        index_response=$(curl -s -X GET "https://api.csqaq.com/api/v1/current_data")
+        
+        if echo "$index_response" | grep -q '"code":200'; then
+          echo "✅ 指数数据获取成功!"
+          
+          # 解析指数数据
+          market_index=$(echo "$index_response" | grep -o '"market_index":[^,]*' | head -1 | cut -d':' -f2 | tr -d '" ')
+          chg_rate=$(echo "$index_response" | grep -o '"chg_rate":[^,]*' | head -1 | cut -d':' -f2)
+          online_players=$(echo "$index_response" | grep -o '"current_number":[^,}]*' | cut -d':' -f2)
+          
+          echo "饰品指数: $market_index"
+          echo "涨跌幅: $chg_rate%"
+          echo "在线人数: $online_players"
+          
+          # 构建中文通知内容
+          notification_content="CS2饰品价格监控
+
+🎯 监控饰品: ${{ steps.item-info.outputs.NAME }}
+
+📊 当前饰品指数: $market_index
+📈 24小时涨跌: $chg_rate%
+👥 在线人数: $online_players人
+
+🕐 更新时间: $(date '+%Y年%m月%d日 %H:%M:%S')
+🌐 服务器IP: ${{ steps.get-ip.outputs.IP }}
+
+📢 价格来源: CSQAQ数据平台
+🏪 数据平台: BUFF悠悠有品
+
+💡 系统状态: 正常运行中
+
+此价格为参考价格，实际交易请以各平台为准"
+          
+          # 发送中文通知
+          curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$notification_content\",
+              \"summary\": \"CS2饰品价格监控\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          
+          echo "✅ 通知发送成功!"
+        else
+          echo "❌ 指数数据获取失败"
+          
+          # 发送错误通知
+          error_content="CS2监控错误
+
+❌ 错误类型: 指数数据获取失败
+🎯 监控饰品: ${{ steps.item-info.outputs.NAME }}
+🕐 错误时间: $(date '+%Y年%m月%d日 %H:%M:%S')
+🌐 服务器IP: ${{ steps.get-ip.outputs.IP }}
+
+📢 价格来源: CSQAQ数据平台
+
+💥 请检查API Token或网络连接"
+          
+          curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$error_content\",
+              \"summary\": \"CS2监控错误\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          exit 1
+        fi
+        
+    - name: Status Report
+      if: always()
+      run: |
+        echo "📊 任务执行报告:"
+        echo "⏰ 执行时间: $(date '+%Y年%m月%d日 %H:%M:%S')"
+        echo "📍 服务器IP: ${{ steps.get-ip.outputs.IP }}"
+        echo "🎯 监控饰品: ${{ steps.item-info.outputs.NAME }}"
+        
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ 任务状态: 成功完成"
+        else
+          echo "❌ 任务状态: 执行失败"
+        fi
