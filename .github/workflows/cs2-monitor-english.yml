@@ -1,0 +1,144 @@
+name: CS2 Monitor (English Version)
+
+on:
+  schedule:
+    - cron: '*/30 * * *'  # Every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Get current IP
+      id: get-ip
+      run: |
+        current_ip=$(curl -s ifconfig.me)
+        echo "Current IP: $current_ip"
+        echo "IP=$current_ip" >> $GITHUB_OUTPUT
+        
+    - name: Set item info
+      id: item-info
+      run: |
+        item_name="M4A4 | Active Homeward (Factory New)"
+        echo "Item Name: $item_name"
+        echo "NAME=$item_name" >> $GITHUB_OUTPUT
+        
+    - name: Bind IP to CSQAQ
+      run: |
+        echo "Binding IP to CSQAQ: ${{ steps.get-ip.outputs.IP }}"
+        
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/sys/bind_local_ip" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: JOVN71P7T388E2N1G1H6W5A0")
+        
+        echo "IP binding response: $response"
+        
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ IP binding successful!"
+          bound_ip=$(echo "$response" | grep -o '当前绑定IP为：[^"]*' | cut -d'：' -f2)
+          echo "Bound IP: $bound_ip"
+        else
+          echo "❌ IP binding failed"
+          exit 1
+        fi
+        
+    - name: Wait for IP binding
+      run: |
+        echo "Waiting 20 seconds for IP binding to take effect..."
+        sleep 20
+        
+    - name: Get CS2 Data and Send English Notification
+      run: |
+        echo "Fetching CS2 data..."
+        
+        # Get CSQAQ current data
+        api_response=$(curl -s -X GET "https://api.csqaq.com/api/v1/current_data")
+        
+        if echo "$api_response" | grep -q '"code":200'; then
+          echo "✅ Data fetch successful!"
+          
+          # Parse data
+          market_index=$(echo "$api_response" | grep -o '"market_index":[^,]*' | head -1 | cut -d':' -f2 | tr -d '" ')
+          chg_rate=$(echo "$api_response" | grep -o '"chg_rate":[^,]*' | head -1 | cut -d':' -f2)
+          online_players=$(echo "$api_response" | grep -o '"current_number":[^,}]*' | cut -d':' -f2)
+          
+          echo "Market Index: $market_index"
+          echo "Change Rate: $chg_rate%"
+          echo "Online Players: $online_players"
+          
+          # Build English notification content
+          notification_content="CS2 Item Price Monitor Update
+
+Monitored Item: ${{ steps.item-info.outputs.NAME }}
+
+Current Market Index: $market_index
+24h Change: $chg_rate%
+Online Players: $online_players
+
+Update Time: $(date '+%Y-%m-%d %H:%M:%S')
+Monitor IP: ${{ steps.get-ip.outputs.IP }}
+
+Price Source: CSQAQ Data Platform
+Data Platform: BUFF YOYOYOU
+Price Reference: For reference only, actual transactions depend on platform
+
+Status: System running normally"
+          
+          # Send English notification
+          curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$notification_content\",
+              \"summary\": \"CS2 Price Update - M4A4 Active Homeward\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          
+          echo "✅ English notification sent successfully!"
+        else
+          echo "❌ Data fetch failed"
+          
+          # Send error notification
+          error_content="CS2 Monitor Error
+
+Status: Data fetch failed
+Monitored Item: ${{ steps.item-info.outputs.NAME }}
+Time: $(date '+%Y-%m-%d %H:%M:%S')
+IP: ${{ steps.get-ip.outputs.IP }}
+
+Price Source: CSQAQ Data Platform
+
+Error: API data retrieval failed
+
+Please check API token or network connection"
+          
+          curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$error_content\",
+              \"summary\": \"CS2 Monitor Error\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          exit 1
+        fi
+        
+    - name: Status Report
+      if: always()
+      run: |
+        echo "📊 Task execution report:"
+        echo "⏰ Execution time: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "📍 Server IP: ${{ steps.get-ip.outputs.IP }}"
+        echo "🎯 Monitored Item: ${{ steps.item-info.outputs.NAME }}"
+        
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Task status: Successfully completed"
+        else
+          echo "❌ Task status: Execution failed"
+        fi
