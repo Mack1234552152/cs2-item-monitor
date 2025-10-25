@@ -1,0 +1,134 @@
+name: Test CSQAQ API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-csqaq:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Test CSQAQ API connectivity
+      run: |
+        echo "=== Testing CSQAQ API ==="
+        echo "Base URL: https://api.csqaq.com/api/v1"
+        echo "Token: JOVN71P7T388E2N1G1H6W5A0"
+        echo "Whitelist IP: 111.19.113.82"
+        echo ""
+        echo "Current GitHub Actions IP range:"
+        curl -s https://api.github.com/meta | grep "actions" || echo "Cannot fetch GitHub IP ranges"
+        echo ""
+        
+    - name: Test basic API call
+      run: |
+        echo "=== Testing basic API call ==="
+        
+        # Test without authentication first
+        response=$(curl -s -w "HTTP_CODE:%{http_code}" "https://api.csqaq.com/api/v1/items")
+        echo "Basic response: $response"
+        echo ""
+        
+        # Test with token
+        response=$(curl -s -w "HTTP_CODE:%{http_code}" \
+          -H "Authorization: Bearer JOVN71P7T388E2N1G1H6W5A0" \
+          -H "Content-Type: application/json" \
+          "https://api.csqaq.com/api/v1/items")
+        echo "Authenticated response: $response"
+        echo ""
+        
+        # Test price endpoint
+        response=$(curl -s -w "HTTP_CODE:%{http_code}" \
+          -H "Authorization: Bearer JOVN71P7T388E2N1G1H6W5A0" \
+          -H "Content-Type: application/json" \
+          -d '{"market_name":"AK-47 | Redline"}' \
+          "https://api.csqaq.com/api/v1/price")
+        echo "Price API response: $response"
+        echo ""
+        
+    - name: Test with Node.js
+      run: |
+        echo "=== Testing with Node.js ==="
+        
+        # Install axios for testing
+        npm install axios
+        
+        # Create test script
+        cat > test-api.js << 'EOF'
+        const axios = require('axios');
+        
+        const config = {
+          api: {
+            csqaq: {
+              baseUrl: "https://api.csqaq.com/api/v1",
+              token: "JOVN71P7T388E2N1G1H6W5A0",
+              whitelist_ip: "111.19.113.82"
+            }
+          }
+        };
+        
+        async function testAPI() {
+          try {
+            console.log('Testing CSQAQ API with Node.js...');
+            
+            const axiosConfig = {
+              baseURL: config.api.csqaq.baseUrl,
+              headers: {
+                'Authorization': `Bearer ${config.api.csqaq.token}`,
+                'Content-Type': 'application/json'
+              },
+              timeout: 10000
+            };
+            
+            console.log('Axios config:', JSON.stringify(axiosConfig, null, 2));
+            
+            // Test items endpoint
+            console.log('\n=== Testing /items endpoint ===');
+            try {
+              const itemsResponse = await axios.get('/items', axiosConfig);
+              console.log('Items response status:', itemsResponse.status);
+              console.log('Items response data:', JSON.stringify(itemsResponse.data, null, 2));
+            } catch (error) {
+              console.log('Items API Error:');
+              console.log('Status:', error.response?.status);
+              console.log('Data:', error.response?.data);
+              console.log('Message:', error.message);
+            }
+            
+            // Test price endpoint
+            console.log('\n=== Testing /price endpoint ===');
+            try {
+              const priceResponse = await axios.post('/price', {
+                market_name: "AK-47 | Redline"
+              }, axiosConfig);
+              console.log('Price response status:', priceResponse.status);
+              console.log('Price response data:', JSON.stringify(priceResponse.data, null, 2));
+            } catch (error) {
+              console.log('Price API Error:');
+              console.log('Status:', error.response?.status);
+              console.log('Data:', error.response?.data);
+              console.log('Message:', error.message);
+            }
+            
+          } catch (error) {
+            console.log('General Error:', error.message);
+          }
+        }
+        
+        testAPI();
+        EOF
+        
+        node test-api.js
+        
+    - name: Send test result via WXpusher
+      run: |
+        echo "=== Sending test results ==="
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz",
+            "content": "🔧 CSQAQ API测试完成\\n\\n⏰ 时间: '"$(date)"'\\n🌐 API: https://api.csqaq.com/api/v1\\n🔑 Token: JOVN71P7T388E2N1G1H6W5A0\\n📱 请检查工作流日志查看API调用结果\\n📍 GitHub IP可能需要加入白名单",
+            "summary": "CSQAQ API测试",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        echo "WXpusher response: $response"
