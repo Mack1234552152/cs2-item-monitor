@@ -39,7 +39,7 @@ jobs:
           },
           "notification": {
             "wxpusher": {
-              "appToken": "AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+              "appToken": "AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz",
               "baseUrl": "https://wxpusher.zjiecode.com"
             }
           },
@@ -94,7 +94,7 @@ jobs:
         echo "🚀 Starting CS2 price monitor..."
         echo "Current time: $(date)"
         echo "API endpoint: https://api.csqaq.com/api/v1"
-        echo "WXpusher AppToken: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj"
+        echo "WXpusher AppToken: AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz"
         timeout 300s npm start || echo "Monitor completed or timed out"
         
     - name: Show execution result
@@ -104,7 +104,7 @@ jobs:
         echo "- **执行时间**: $(date)" >> $GITHUB_STEP_SUMMARY
         echo "- **API端点**: https://api.csqaq.com/api/v1" >> $GITHUB_STEP_SUMMARY
         echo "- **监控状态**: ${{ steps.monitor.outcome }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **WXpusher配置**: ✅ 已配置 (新AppToken: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj)" >> $GITHUB_STEP_SUMMARY
+        echo "- **WXpusher配置**: ✅ 已配置 (新AppToken: AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz)" >> $GITHUB_STEP_SUMMARY
         
     - name: Upload logs
       if: always()
