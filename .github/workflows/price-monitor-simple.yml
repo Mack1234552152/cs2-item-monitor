@@ -31,9 +31,9 @@ jobs:
         {
           "api": {
             "csqaq": {
-              "baseUrl": "https://csqaq.com/proxies/api/v1",
-              "token": "${{ secrets.CSQAQ_TOKEN }}",
-              "whitelist_ip": "${{ secrets.CSQAQ_WHITELIST_IP }}"
+              "baseUrl": "https://api.csqaq.com/api/v1",
+              "token": "${{ secrets.CSQAQ_TOKEN || 'JOVN71P7T388E2N1G1H6W5A0' }}",
+              "whitelist_ip": "${{ secrets.CSQAQ_WHITELIST_IP || '111.19.113.82' }}"
             }
           },
           "notification": {
