@@ -1,0 +1,50 @@
+# Simple test file - this will trigger workflows
+
+name: Simple Test
+description: Ultra simple test that must run successfully
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Ultra Simple Test
+      run: |
+        echo "🚀 Starting ultra simple test..."
+        echo "Current time: $(date)"
+        echo "Node version: $(node --version)"
+        
+        # Test WXpusher with most basic approach
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+            "content": "🎯 Ultra Simple Test SUCCESS!\n\n⏰ Time: '"$(date)"'\n✅ Status: Running\n🔧 Token: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+            "summary": "Simple Test Success",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        
+        echo "Response: $response"
+        
+        if echo "$response" | grep -q '"code":1000'; then
+          echo "✅ SUCCESS: WXpusher notification sent!"
+          echo "## 🎉 TEST RESULT: SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Response**: $response" >> $GITHUB_STEP_SUMMARY
+          echo "- **You should receive notification on your phone!**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ FAILED: WXpusher notification failed"
+          echo "## ❌ TEST RESULT: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ❌ FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Response**: $response" >> $GITHUB_STEP_SUMMARY
+          echo "- **Check**: AppToken, UID, API endpoint" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
