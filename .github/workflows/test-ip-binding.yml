@@ -1,0 +1,59 @@
+name: Test CSQAQ IP Binding Issue
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-ip-binding:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check Current IP and API Status
+      run: |
+        echo "=== 🔍 CSQAQ API IP白名单验证 ==="
+        echo "当前GitHub Actions IP地址:"
+        
+        # 获取当前公网IP
+        CURRENT_IP=$(curl -s ifconfig.me || curl -s ipinfo.io/ip)
+        echo "IP地址: $CURRENT_IP"
+        
+        echo ""
+        echo "📋 CSQAQ API要求："
+        echo "1. 必须先绑定IP到白名单"
+        echo "2. 需要有效的ApiToken"
+        echo "3. 当前IP: $CURRENT_IP"
+        echo ""
+        
+    - name: Test API Without IP Binding (Expected to Fail)
+      run: |
+        echo "=== ❌ 测试API调用（预期失败） ==="
+        
+        response=$(curl -s -w "HTTP_CODE:%{http_code}" \
+          -X POST "https://api.csqaq.com/api/v1/goods/get_all_goods_info" \
+          -H "ApiToken: JOVN71P7T388E2N1G1H6W5A0" \
+          -H "Content-Type: application/json" \
+          -d '{"limit": 1, "page": 1}')
+        
+        echo "API响应: $response"
+        
+        if [[ $response == *"请求的地址非法"* ]]; then
+          echo "❌ 确认：需要IP白名单绑定"
+        else
+          echo "✅ API调用成功"
+        fi
+        
+    - name: Send Problem Report via WXpusher
+      run: |
+        echo "=== 📱 发送问题报告 ==="
+        
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz",
+            "content": "🚨 CSQAQ API问题已确认\\n\\n⚠️ 发现根本问题：\\n• GitHub Actions IP不在CSQAQ白名单\\n• 需要先绑定IP地址\\n• ApiToken可能需要重新获取\\n\\n📋 解决方案：\\n1. 联系CSQAQ管理员绑定IP\\n2. 或使用其他数据源（如Steam API、Buff API）\\n3. 考虑使用VPS固定IP\\n\\n💡 建议：\\n暂时无法通过CSQAQ API获取数据，需要更换数据源",
+            "summary": "CSQAQ API需要IP白名单绑定",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        
+        echo "WXpusher发送状态: $response"
