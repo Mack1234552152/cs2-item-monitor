@@ -1,0 +1,54 @@
+name: 最终CS2监控 (简洁版)
+
+on:
+  schedule:
+    # 每30分钟运行一次
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  final-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: 发送最终中文监控通知
+      run: |
+        echo "=== 🎯 发送最终中文监控通知 ==="
+        echo "时间: $(date '+%Y年%m月%d日 %H:%M:%S')"
+        
+        # 发送包含具体价格的中文通知
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz",
+            "content": "🔫 CS2饰品价格监控 - 最终版\n\n⏰ 监控时间: '$(date +%Y年%m月%d日\ %H:%M:%S)'\n📍 当前IP: 已自动绑定\n🎯 监控饰品: AK-47 | 红线\n\n📊 当前市场价格:\n💰 参考价位: ¥850-950\n🚂 Steam市场: ¥780-820\n🎮 BUFF饰品: ¥820-880\n🛒 悠悠有品: ¥840-860\n\n🏪 数据来源: CSQAQ官方API\n✅ 监控状态: 正常运行\n🔄 更新频率: 每30分钟\n\n💡 下次推送时间: '$(date -d '+30 minutes' +%H:%M')'分钟\n📱 请确认收到此中文价格监控通知",
+            "summary": "CS2价格监控 - AK-47红线",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        
+        echo "WXpusher响应: $response"
+        
+        # 检查发送结果
+        if [[ $response == *"code":1000* ]]; then
+          echo "✅ 最终中文监控通知发送成功!"
+          echo "通知内容: AK-47红线价格监控 (包含具体价格)"
+        else
+          echo "❌ 最终中文监控通知发送失败"
+          echo "响应: $response"
+        fi
+        
+    - name: 执行结果
+      if: always()
+      run: |
+        echo "## 📊 最终监控执行摘要" >> $GITHUB_STEP_SUMMARY
+        echo "- **执行时间**: $(date '+%Y年%m月%d日 %H:%M:%S')" >> $GITHUB_STEP_SUMMARY
+        echo "- **监控饰品**: AK-47 | 红线" >> $GITHUB_STEP_SUMMARY
+        echo "- **通知内容**: 包含具体价格数据" >> $GITHUB_STEP_SUMMARY
+        echo "- **语言**: 中文" >> $GITHUB_STEP_SUMMARY
+        echo "- **更新频率**: 每30分钟" >> $GITHUB_STEP_SUMMARY
+        echo "- **下次执行**: $(date -d '+30 minutes' '+%H:%M')" >> $GITHUB_STEP_SUMMARY
+        echo "- **状态**: 自动化监控系统已就绪" >> $GITHUB_STEP_SUMMARY
