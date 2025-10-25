@@ -1,0 +1,2 @@
+触发价格监控测试 - 发送WXpusher通知
+测试时间: ${new Date().toISOString()}
