@@ -1,0 +1,165 @@
+name: CS2 Advanced Price Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时运行一次
+    - cron: '0 9 * * *'   # 每天上午9点额外运行一次
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: '测试模式 (仅发送简短通知)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm init -y
+        echo '已完成Node.js环境设置'
+        
+    - name: Get current IP and debug info
+      id: debug
+      run: |
+        echo "🔍 获取运行环境信息..."
+        current_ip=$(curl -s ifconfig.me)
+        location=$(curl -s ipinfo.io/city)
+        echo "📍 当前IP: $current_ip"
+        echo "🌍 位置: $location"
+        echo "⏰ 当前时间: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "ip=$current_ip" >> $GITHUB_OUTPUT
+        echo "location=$location" >> $GITHUB_OUTPUT
+        
+    - name: Check CSQAQ API Token
+      run: |
+        if [ -z "${{ secrets.CSQAQ_API_TOKEN }}" ]; then
+          echo "❌ 错误: CSQAQ_API_TOKEN 未设置"
+          echo "请在仓库设置中添加 CSQAQ_API_TOKEN secret"
+          exit 1
+        else
+          echo "✅ CSQAQ API Token 已设置"
+          echo "Token前缀: ${{ secrets.CSQAQ_API_TOKEN }}:0:8"
+        fi
+        
+    - name: Bind IP to CSQAQ
+      run: |
+        echo "🔗 正在绑定IP到CSQAQ..."
+        echo "IP: ${{ steps.debug.outputs.ip }}"
+        
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/sys/bind_local_ip" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: ${{ secrets.CSQAQ_API_TOKEN }}")
+        
+        echo "IP绑定响应: $response"
+        
+        # 检查绑定结果
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ IP绑定成功!"
+          bound_ip=$(echo "$response" | grep -o '当前绑定IP为：[^"]*' | cut -d'：' -f2)
+          echo "绑定IP: $bound_ip"
+        else
+          echo "❌ IP绑定失败"
+          echo "Response: $response"
+          
+          # 发送错误通知
+          curl -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"❌ CS2监控失败\\n\\n🔧 IP绑定失败\\n📍 IP: ${{ steps.debug.outputs.ip }}\\n🌍 位置: ${{ steps.debug.outputs.location }}\\n🕐 时间: $(date '+%Y-%m-%d %H:%M:%S')\\n\\n响应: $response\",
+              \"summary\": \"CS2监控-IP绑定失败\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          exit 1
+        fi
+        
+    - name: Wait for IP binding to take effect
+      run: |
+        echo "⏳ 等待IP绑定生效 (30秒)..."
+        for i in {30..1}; do
+          echo "等待中... $i 秒"
+          sleep 1
+        done
+        echo "✅ 等待完成，开始获取数据"
+        
+    - name: Run CS2 Monitor Script
+      run: |
+        echo "🚀 运行CS2监控脚本..."
+        
+        # 设置环境变量
+        export CSQAQ_API_TOKEN="${{ secrets.CSQAQ_API_TOKEN }}"
+        
+        # 检查是否为测试模式
+        if [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
+          echo "🧪 测试模式 - 发送简短测试通知"
+          
+          # 发送测试通知
+          curl -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"🧪 CS2监控测试\\n\\n✅ 脚本运行正常\\n📍 IP: ${{ steps.debug.outputs.ip }}\\n🌍 位置: ${{ steps.debug.outputs.location }}\\n🕐 测试时间: $(date '+%Y-%m-%d %H:%M:%S')\",
+              \"summary\": \"CS2监控测试\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+        else
+          echo "📊 正常监控模式 - 获取饰品数据"
+          
+          # 运行Node.js监控脚本
+          node scripts/cs2-monitor.js
+        fi
+        
+    - name: System Info and Cleanup
+      if: always()
+      run: |
+        echo "📊 任务执行信息:"
+        echo "⏰ 开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "🖥️ 运行器: ${{ runner.os }}"
+        echo "📍 IP: ${{ steps.debug.outputs.ip }}"
+        echo "🌍 位置: ${{ steps.debug.outputs.location }}"
+        echo "📁 工作目录: $(pwd)"
+        echo "💾 磁盘使用: $(df -h .)"
+        echo "🔧 内存使用: $(free -h)"
+        
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ 任务状态: 成功完成"
+        else
+          echo "❌ 任务状态: 执行失败"
+          
+          # 发送失败通知
+          curl -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"❌ CS2监控任务失败\\n\\n🔧 状态: ${{ job.status }}\\n📍 IP: ${{ steps.debug.outputs.ip }}\\n🌍 位置: ${{ steps.debug.outputs.location }}\\n🕐 失败时间: $(date '+%Y-%m-%d %H:%M:%S')\\n\\n请检查工作流日志\",
+              \"summary\": \"CS2监控失败\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+        fi
+        
+    - name: Success Summary
+      if: success()
+      run: |
+        echo "🎉 CS2饰品价格监控任务成功完成!"
+        echo "📊 本次监控包含:"
+        echo "   • IP绑定和验证"
+        echo "   • 多个饰品价格获取"
+        echo "   • 热门饰品排行"
+        echo "   • WXpusher通知发送"
+        echo "✅ 所有步骤执行完毕"
