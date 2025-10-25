@@ -1,0 +1,15 @@
+name: Basic Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Basic Test
+      run: |
+        echo "🧪 Running basic test..."
+        echo "Current time: $(date)"
+        echo "Node version: $(node --version)"
+        echo "✅ Basic test completed successfully!
