@@ -1,10 +1,10 @@
-name: Force Price Alert Test
+name: Force WXpusher Test
 
 on:
   workflow_dispatch:
     inputs:
       send_alert:
-        description: '是否发送测试价格预警'
+        description: 'Send WXpusher test message'
         required: false
         default: 'yes'
         type: choice
@@ -13,9 +13,9 @@ on:
           - no
 
 jobs:
-  force-alert-test:
+  test-wxpusher:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 3
     
     steps:
     - name: Checkout code
@@ -25,7 +25,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: '18'
-        cache: 'npm'
         
     - name: Install dependencies
       run: npm ci
@@ -43,97 +42,62 @@ jobs:
           },
           "notification": {
             "wxpusher": {
-              "appToken": "${{ secrets.WXPUSHER_APP_TOKEN }}",
+              "appToken": "AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0",
               "baseUrl": "https://wxpusher.zjiecode.com"
             }
           }
         }
         EOF
         
-    - name: Create test alert script
+    - name: Send test message
+      if: github.event.inputs.send_alert == 'yes' || github.event.inputs.send_alert == ''
       run: |
-        cat > force-test-alert.js << 'EOF'
-        const WXPusher = require('./src/notification/wxpusher');
+        cat > send-test.js << 'EOF'
+        const axios = require('axios');
         
-        console.log('🧪 强制触发价格预警测试...');
-        
-        const notifier = new WXPusher();
-        
-        // 创建测试价格预警数据
-        const testAlert = {
-          itemName: 'AK-47 | 红线 (测试预警)',
-          platform: 'Steam市场',
-          currentPrice: 158.50,
-          historicalLow: 180.00,
-          discount: 0.12, // 12%折扣
-          url: 'https://example.com/test'
-        };
-        
-        console.log('📤 测试预警数据:');
-        console.log('- 饰品:', testAlert.itemName);
-        console.log('- 平台:', testAlert.platform);
-        console.log('- 当前价格: ¥' + testAlert.currentPrice);
-        console.log('- 历史最低: ¥' + testAlert.historicalLow);
-        console.log('- 折扣:', (testAlert.discount * 100).toFixed(1) + '%');
-        
-        async function sendTestAlert() {
+        async function sendTestMessage() {
           try {
-            console.log('📱 发送测试价格预警...');
+            console.log('🧪 Sending WXpusher test message...');
+            console.log('AppToken: AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0');
             
-            const result = await notifier.sendPriceAlert(testAlert);
+            // Get users first
+            const users = await axios.get('https://wxpusher.zjiecode.com/api/fun/wxuser', {
+              params: {
+                appToken: 'AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0',
+                page: 1,
+                pageSize: 10
+              }
+            });
             
-            console.log('✅ 价格预警发送结果:', result);
+            console.log('📋 Found users:', users.data.data?.records?.length || 0);
             
-            if (result && result.code === 1000) {
-              console.log('🎉 价格预警发送成功！');
-              console.log('请检查您的微信是否收到预警消息');
+            if (users.data.data && users.data.data.records && users.data.data.records.length > 0) {
+              const userIds = users.data.data.records.map(user => user.uid);
+              
+              const messageResponse = await axios.post('https://wxpusher.zjiecode.com/api/send/message', {
+                appToken: 'AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0',
+                contentType: 1,
+                content: '🧪 WXpusher测试消息\\n\\n时间: ' + new Date().toLocaleString('zh-CN') + '\\n\\n这是一条测试消息，用于验证WXpusher配置是否正确！',
+                summary: 'WXpusher测试',
+                uids: userIds
+              });
+              
+              console.log('✅ Message sent successfully:', messageResponse.data);
+              console.log('🎉 检查您的微信是否收到此消息！');
             } else {
-              console.error('❌ 价格预警发送失败:', result ? result.msg : '未知错误');
+              console.log('⚠️ No users found, please follow WXpusher official account');
             }
             
           } catch (error) {
-            console.error('❌ 发送价格预警时出错:', error.message);
-            
+            console.error('❌ Failed to send message:', error.message);
             if (error.response) {
-              console.error('HTTP状态码:', error.response.status);
-              console.error('响应数据:', error.response.data);
+              console.error('Response data:', error.response.data);
             }
-            
             process.exit(1);
           }
         }
         
-        sendTestAlert();
+        sendTestMessage();
         EOF
         
-    - name: Test WXpusher configuration
-      run: |
-        echo "## 🔧 WXpusher配置检查" >> $GITHUB_STEP_SUMMARY
-        if [ -z "${{ secrets.WXPUSHER_APP_TOKEN }}" ]; then
-          echo "❌ **WXPUSHER_APP_TOKEN 未配置**" >> $GITHUB_STEP_SUMMARY
-          echo "请在 GitHub 仓库设置中添加 WXPUSHER_APP_TOKEN" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "✅ **WXPUSHER_APP_TOKEN 已配置**" >> $GITHUB_STEP_SUMMARY
-          echo "Token长度: $(echo -n "${{ secrets.WXPUSHER_APP_TOKEN }}" | wc -c) 字符" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-    - name: Send test alert
-      if: github.event.inputs.send_alert == 'yes' || github.event.inputs.send_alert == ''
-      env:
-        WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
-      run: |
-        echo "## 📱 强制价格预警测试" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "执行时间: $(date)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        node force-test-alert.js 2>&1 | tee /tmp/alert-test.log
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        
-    - name: Upload test logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: force-alert-test-logs-${{ github.run_number }}
-        path: /tmp/alert-test.log
-        retention-days: 3
+        node send-test.js
