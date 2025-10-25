@@ -1,0 +1,25 @@
+name: Ultra Simple Test
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Ultra Simple Test - Send WXpusher Notification
+      run: |
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+            "content": "🎯 Ultra Simple Test SUCCESS!\n\n⏰ Time: '"$(date)"'\n✅ Status: Running\n🔧 Token: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+            "summary": "Simple Test Success",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        echo "Response: $response"
+        echo "✅ Test completed"
