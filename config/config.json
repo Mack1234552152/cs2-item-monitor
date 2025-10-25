@@ -1,0 +1,32 @@
+{
+  "api": {
+    "csqaq": {
+      "baseUrl": "https://api.csqaq.com/api/v1",
+      "token": "JOVN71P7T388E2N1G1H6W5A0",
+      "whitelist_ip": "111.19.113.82"
+    }
+  },
+  "notification": {
+    "wxpusher": {
+      "appToken": "YOUR_WXPUSHER_APP_TOKEN_HERE",
+      "baseUrl": "https://wxpusher.zjiecode.com"
+    }
+  },
+  "monitor": {
+    "interval": 300000,
+    "platforms": ["youyoupin", "buff", "steam"],
+    "priceThreshold": 1.0,
+    "retryAttempts": 3,
+    "retryDelay": 5000,
+    "historyDays": 180,
+    "comment": "priceThreshold=1.0 means alert when current price is at or below 6-month low"
+  },
+  "storage": {
+    "dataPath": "./data/price-history.json",
+    "maxHistoryDays": 180
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/monitor.log"
+  }
+}
