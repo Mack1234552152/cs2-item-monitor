@@ -1,0 +1,112 @@
+name: CS2 Price Monitor - Fixed with IP Binding
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时运行一次
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Get current IP address
+      id: ip
+      run: |
+        current_ip=$(curl -s ifconfig.me)
+        echo "Current IP: $current_ip"
+        echo "IP=$current_ip" >> $GITHUB_OUTPUT
+        
+    - name: Bind IP to CSQAQ
+      run: |
+        echo "正在绑定IP: ${{ steps.ip.outputs.IP }}"
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/sys/bind_local_ip" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: ${{ secrets.CSQAQ_API_TOKEN }}")
+        
+        echo "IP绑定响应: $response"
+        
+        # 等待绑定生效
+        echo "等待30秒让IP绑定生效..."
+        sleep 30
+        
+    - name: Test CSQAQ API Connection
+      run: |
+        echo "测试CSQAQ API连接..."
+        
+        # 先尝试获取首页数据（最简单的接口）
+        response=$(curl -s -X GET "https://api.csqaq.com/api/v1/index/home" \
+          -H "ApiToken: ${{ secrets.CSQAQ_API_TOKEN }}")
+          
+        echo "首页API响应: $response"
+        
+        # 检查是否成功
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ CSQAQ API连接成功!"
+        else
+          echo "❌ CSQAQ API连接失败"
+          echo "Response: $response"
+        fi
+        
+    - name: Fetch Specific CS2 Item Data
+      run: |
+        echo "获取特定饰品数据..."
+        
+        # 获取M4A4 | 活色生香 (崭新出厂) 的数据
+        item_data=$(curl -s -X GET "https://api.csqaq.com/api/v1/goods/detail?goods_id=13283" \
+          -H "ApiToken: ${{ secrets.CSQAQ_API_TOKEN }}")
+          
+        echo "饰品数据响应: $item_data"
+        
+        # 解析价格数据
+        if echo "$item_data" | grep -q '"code":200'; then
+          echo "✅ 饰品数据获取成功!"
+          
+          # 提取价格信息（JSON解析）
+          price=$(echo "$item_data" | grep -o '"price":[^,]*' | cut -d':' -f2 | tr -d '"' | tr -d ' ')
+          echo "当前价格: $price"
+          
+          # 发送通知
+          notification_content="🔫 CS2饰品价格监控\n\n📊 M4A4 | 活色生香 (崭新出厂)\n💰 当前价格: ¥$price\n🕐 更新时间: $(date '+%Y-%m-%d %H:%M:%S')\n📍 服务器IP: ${{ steps.ip.outputs.IP }}"
+          
+          curl -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$notification_content\",
+              \"summary\": \"CS2饰品价格更新\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+            
+          echo "✅ 通知发送成功!"
+        else
+          echo "❌ 饰品数据获取失败"
+          
+          # 发送错误通知
+          error_content="❌ CS2饰品监控失败\n\n🔧 错误信息: 饰品数据获取失败\n📍 服务器IP: ${{ steps.ip.outputs.IP }}\n🕐 失败时间: $(date '+%Y-%m-%d %H:%M:%S')\n\nAPI响应: $item_data"
+          
+          curl -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$error_content\",
+              \"summary\": \"CS2监控失败\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+        fi
+        
+    - name: Summary
+      run: |
+        echo "🎯 CS2饰品监控任务完成!"
+        echo "📍 使用的IP: ${{ steps.ip.outputs.IP }}"
+        echo "⏰ 完成时间: $(date)"
