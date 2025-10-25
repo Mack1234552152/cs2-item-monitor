@@ -1,0 +1,140 @@
+name: Simple WXpusher Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-wxpusher-simple:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Test WXpusher Configuration
+      run: |
+        echo "## 🔍 WXpusher配置诊断" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # 检查AppToken
+        if [ -z "${{ secrets.WXPUSHER_APP_TOKEN }}" ]; then
+          echo "❌ **WXPUSHER_APP_TOKEN 未配置**" >> $GITHUB_STEP_SUMMARY
+          echo "请在 GitHub 仓库设置 > Secrets and variables > Actions 中添加 WXPUSHER_APP_TOKEN" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 如何添加 WXPUSHER_APP_TOKEN:" >> $GITHUB_STEP_SUMMARY
+          echo "1. 访问 [WXpusher管理后台](https://wxpusher.zjiecode.com/admin)" >> $GITHUB_STEP_SUMMARY
+          echo "2. 获取您应用的 AppToken" >> $GITHUB_STEP_SUMMARY
+          echo "3. 在 GitHub 仓库设置中添加新的 Secret" >> $GITHUB_STEP_SUMMARY
+          echo "4. 名称为: \`WXPUSHER_APP_TOKEN\`" >> $GITHUB_STEP_SUMMARY
+          echo "5. 值为您的 WXpusher AppToken" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        else
+          echo "✅ **WXPUSHER_APP_TOKEN 已配置**" >> $GITHUB_STEP_SUMMARY
+          echo "Token长度: $(echo -n "${{ secrets.WXPUSHER_APP_TOKEN }}" | wc -c) 字符" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Create simple WXpusher test
+      run: |
+        cat > test-wxpusher-simple.js << 'EOF'
+        const axios = require('axios');
+        
+        const appToken = process.env.WXPUSHER_APP_TOKEN;
+        
+        console.log('🧪 开始简单WXpusher测试...');
+        console.log('AppToken:', appToken ? `${appToken.length}字符` : '未配置');
+        
+        if (!appToken) {
+          console.error('❌ WXPUSHER_APP_TOKEN 环境变量未设置');
+          process.exit(1);
+        }
+        
+        async function testWXpusher() {
+          try {
+            // 测试获取应用信息
+            console.log('📤 测试获取应用信息...');
+            const appInfoResponse = await axios.get(`https://wxpusher.zjiecode.com/api/fun/app/${appToken}`);
+            console.log('✅ 应用信息:', appInfoResponse.data);
+            
+            // 测试获取用户列表
+            console.log('📤 测试获取用户列表...');
+            const usersResponse = await axios.get('https://wxpusher.zjiecode.com/api/fun/wxuser', {
+              params: {
+                appToken: appToken,
+                page: 1,
+                pageSize: 10
+              }
+            });
+            console.log('✅ 用户列表:', usersResponse.data);
+            
+            // 如果有用户，发送测试消息
+            if (usersResponse.data.data && usersResponse.data.data.records && usersResponse.data.data.records.length > 0) {
+              const userIds = usersResponse.data.data.records.map(user => user.uid);
+              console.log('📤 发送测试消息到用户:', userIds);
+              
+              const messageResponse = await axios.post('https://wxpusher.zjiecode.com/api/send/message', {
+                appToken: appToken,
+                contentType: 1,
+                content: '🧪 WXpusher测试消息！\n\n时间: ' + new Date().toLocaleString('zh-CN') + '\n\n如果您看到这条消息，说明WXpusher配置正确！',
+                summary: 'WXpusher配置测试',
+                uids: userIds
+              });
+              
+              console.log('✅ 消息发送结果:', messageResponse.data);
+              
+              if (messageResponse.data.code === 1000) {
+                console.log('🎉 WXpusher配置正确！消息已发送！');
+              } else {
+                console.error('❌ 消息发送失败:', messageResponse.data.msg);
+              }
+            } else {
+              console.warn('⚠️ 没有关注用户，请确保您已关注WXpusher公众号并添加了您的应用');
+            }
+            
+          } catch (error) {
+            console.error('❌ 测试失败:', error.message);
+            if (error.response) {
+              console.error('HTTP状态:', error.response.status);
+              console.error('响应数据:', error.response.data);
+            }
+            process.exit(1);
+          }
+        }
+        
+        testWXpusher();
+        EOF
+        
+    - name: Run simple WXpusher test
+      env:
+        WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+      run: |
+        echo "## 📋 测试执行日志" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        node test-wxpusher-simple.js 2>&1 | tee /tmp/test-output.log
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        
+        # 检查测试结果
+        if [ $? -eq 0 ]; then
+          echo "## ✅ 测试完成" >> $GITHUB_STEP_SUMMARY
+          echo "检查您的微信是否收到测试消息" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ 测试失败" >> $GITHUB_STEP_SUMMARY
+          echo "请查看上面的错误信息" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: simple-wxpusher-test-logs
+        path: /tmp/test-output.log
+        retention-days: 3
