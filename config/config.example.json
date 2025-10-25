@@ -1,9 +1,9 @@
 {
   "api": {
     "csqaq": {
-      "baseUrl": "https://csqaq.com/proxies/api/v1",
-      "token": "JOVN71P7T388E2N1G1H6W5A0",
-      "whitelist_ip": "YOUR_IP_HERE"
+      "baseUrl": "https://api.csqaq.com/api/v1",
+      "token": "YOUR_CSQAQ_API_TOKEN_HERE",
+      "whitelist_ip": "YOUR_WHITELIST_IP_HERE"
     }
   },
   "notification": {
