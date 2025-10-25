@@ -1,0 +1,115 @@
+name: CS2 Price Monitor (Simple)
+
+on:
+  schedule:
+    # 每5分钟运行一次
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  price-monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create config file
+      run: |
+        cat > config/config.json << EOF
+        {
+          "api": {
+            "csqaq": {
+              "baseUrl": "https://api.csqaq.com/api/v1",
+              "token": "JOVN71P7T388E2N1G1H6W5A0",
+              "whitelist_ip": "111.19.113.82"
+            }
+          },
+          "notification": {
+            "wxpusher": {
+              "appToken": "${{ secrets.WXPUSHER_APP_TOKEN }}",
+              "baseUrl": "https://wxpusher.zjiecode.com"
+            }
+          },
+          "monitor": {
+            "interval": 300000,
+            "platforms": ["youyoupin", "buff", "steam"],
+            "priceThreshold": 1.0,
+            "retryAttempts": 3,
+            "retryDelay": 5000,
+            "historyDays": 180
+          },
+          "storage": {
+            "dataPath": "./data/price-history.json",
+            "maxHistoryDays": 180
+          },
+          "logging": {
+            "level": "info",
+            "file": "logs/monitor.log"
+          }
+        }
+        EOF
+        
+    - name: Create required directories
+      run: |
+        mkdir -p data logs
+        
+    - name: Create items.json if not exists
+      run: |
+        if [ ! -f "config/items.json" ]; then
+          cat > config/items.json << 'EOF'
+          {
+            "items": [
+              {
+                "id": 1,
+                "name": "AK-47 | 红线",
+                "market_name": "AK-47 | Redline",
+                "enabled": true,
+                "platforms": ["youyoupin", "buff", "steam"],
+                "wear_ranges": ["FT", "MW", "FN"],
+                "notify_threshold": 0.9,
+                "priority": "high"
+              }
+            ]
+          }
+          EOF
+        fi
+        
+    - name: Run price monitor (single check)
+      id: monitor
+      continue-on-error: true
+      run: |
+        echo "开始执行价格监控..."
+        timeout 300s npm start || echo "监控执行完成或超时"
+        
+    - name: Show execution result
+      if: always()
+      run: |
+        echo "## 📊 监控执行结果" >> $GITHUB_STEP_SUMMARY
+        echo "- **执行时间**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "- **API端点**: https://api.csqaq.com/api/v1" >> $GITHUB_STEP_SUMMARY
+        echo "- **监控状态**: ${{ steps.monitor.outcome }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **WXpusher配置**: ${{ secrets.WXPUSHER_APP_TOKEN != '' && '✅ 已配置' || '❌ 未配置' }}" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: monitor-logs-${{ github.run_number }}
+        path: |
+          logs/
+          data/
+        retention-days: 3
+        if-no-files-found: ignore
