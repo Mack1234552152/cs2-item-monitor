@@ -228,6 +228,13 @@ on:
 - ✅ 数据存储和历史记录
 - ✅ 错误处理和重试机制
 
+### 当前调试状态 🔍
+
+- 🔧 正在调查工作流失败问题
+- 📱 已更新WXpusher AppToken: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj
+- 🎯 目标UID: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI
+- 🐛 创建了调试工作流进行问题分析
+
 ## 🙏 致谢
 
 - [CSQAQ](https://docs.csqaq.com/) - 提供CS2饰品数据API
@@ -246,6 +253,8 @@ MIT License - 详见 [LICENSE](LICENSE) 文件
 
 ---
 
-🎮 **Happy Trading!** 愿你买到心仪的饰品！
+🎮 **Happy Trading!** 祝你买到心仪的饰品！
 
 # GitHub Actions configured ✅
+
+最后更新: $(date) - 调试工作流已创建
