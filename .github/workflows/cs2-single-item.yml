@@ -1,0 +1,180 @@
+name: CS2 Single Item Monitor
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'  # 每30分钟运行一次
+  workflow_dispatch:
+    inputs:
+      item_name:
+        description: '饰品名称'
+        required: false
+        default: 'M4A4 | 活色生香'
+        type: string
+      item_id:
+        description: '饰品ID'
+        required: false
+        default: '13283'
+        type: string
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Get current IP
+      id: get-ip
+      run: |
+        current_ip=$(curl -s ifconfig.me)
+        echo "Current IP: $current_ip"
+        echo "IP=$current_ip" >> $GITHUB_OUTPUT
+        
+    - name: Set item info
+      id: item-info
+      run: |
+        # 使用输入参数或默认值
+        item_name="${{ github.event.inputs.item_name || 'M4A4 | 活色生香 (崭新出厂)' }}"
+        item_id="${{ github.event.inputs.item_id || '13283' }}"
+        
+        echo "Item Name: $item_name"
+        echo "Item ID: $item_id"
+        echo "NAME=$item_name" >> $GITHUB_OUTPUT
+        echo "ID=$item_id" >> $GITHUB_OUTPUT
+        
+    - name: Bind IP to CSQAQ
+      run: |
+        echo "Binding IP: ${{ steps.get-ip.outputs.IP }}"
+        
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/sys/bind_local_ip" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: JOVN71P7T388E2N1G1H6W5A0")
+        
+        echo "IP binding response: $response"
+        
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ IP binding successful!"
+        else
+          echo "❌ IP binding failed"
+          exit 1
+        fi
+        
+    - name: Wait for IP binding
+      run: |
+        echo "Waiting 20 seconds for IP binding to take effect..."
+        sleep 20
+        
+    - name: Get Single Item Data
+      run: |
+        echo "Fetching data for: ${{ steps.item-info.outputs.NAME }}"
+        
+        # 使用CSQAQ的热门排行API来获取特定饰品信息
+        response=$(curl -s -X POST "https://api.csqaq.com/api/v1/goods/hot_rank" \
+          -H "Content-Type: application/json" \
+          -H "ApiToken: JOVN71P7T388E2N1G1H6W5A0" \
+          -d '{
+            "page": 1,
+            "page_size": 50
+          }')
+        
+        if echo "$response" | grep -q '"code":200'; then
+          echo "✅ Data fetch successful!"
+          
+          # 从热门排行中查找指定饰品
+          item_data=$(echo "$response" | grep -o "{[^}]*\"goods_id\":${{ steps.item-info.outputs.ID }}[^}]*}" | head -1)
+          
+          if [ -n "$item_data" ]; then
+            echo "Found item data!"
+            
+            # 解析价格信息
+            price=$(echo "$item_data" | grep -o '"price":[^,}]*' | cut -d':' -f2 | tr -d '" ')
+            name=$(echo "$item_data" | grep -o '"name":"[^"]*"' | cut -d':' -f2 | tr -d '" ')
+            change_24h=$(echo "$item_data" | grep -o '"change_24h":[^,}]*' | cut -d':' -f2 | tr -d '" ')
+            
+            echo "Name: $name"
+            echo "Price: $price"
+            echo "24h Change: $change_24h%"
+            
+            # 构建通知内容
+            notification_content="CS2饰品监控 - ${{ steps.item-info.outputs.NAME }}
+
+当前价格: ¥$price
+24小时变化: $change_24h%
+更新时间: $(date '+%Y-%m-%d %H:%M:%S')
+监控IP: ${{ steps.get-ip.outputs.IP }}
+
+饰品ID: ${{ steps.item-info.outputs.ID }}"
+            
+            # 发送通知
+            curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+                \"content\": \"$notification_content\",
+                \"summary\": \"CS2饰品: ${{ steps.item-info.outputs.NAME }}\",
+                \"contentType\": 1,
+                \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+              }"
+            
+            echo "✅ Notification sent successfully!"
+          else
+            echo "❌ Item not found in hot ranking"
+            
+            # 发送未找到通知
+            error_content="CS2监控 - 饰品未找到
+
+饰品: ${{ steps.item-info.outputs.NAME }}
+ID: ${{ steps.item-info.outputs.ID }}
+时间: $(date '+%Y-%m-%d %H:%M:%S')
+
+可能原因: 饰品不在热门排行中"
+            
+            curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+              -H "Content-Type: application/json" \
+              -d "{
+                \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+                \"content\": \"$error_content\",
+                \"summary\": \"CS2饰品未找到\",
+                \"contentType\": 1,
+                \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+              }"
+          fi
+        else
+          echo "❌ API request failed"
+          
+          # 发送API失败通知
+          error_content="CS2监控 - API请求失败
+
+饰品: ${{ steps.item-info.outputs.NAME }}
+时间: $(date '+%Y-%m-%d %H:%M:%S')
+IP: ${{ steps.get-ip.outputs.IP }}
+
+请检查API Token是否有效"
+          
+          curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"appToken\": \"AT_oVgZnjiSqzzv1ycEbihcgjtoM4BggMjz\",
+              \"content\": \"$error_content\",
+              \"summary\": \"CS2监控API失败\",
+              \"contentType\": 1,
+              \"uids\": [\"UID_Nkv98Q7XEQcDsvSInIlR10nm33xI\"]
+            }"
+          exit 1
+        fi
+        
+    - name: Status Report
+      if: always()
+      run: |
+        echo "📊 任务执行报告:"
+        echo "⏰ 执行时间: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo "📍 服务器IP: ${{ steps.get-ip.outputs.IP }}"
+        echo "🔫 监控饰品: ${{ steps.item-info.outputs.NAME }}"
+        echo "🆔 饰品ID: ${{ steps.item-info.outputs.ID }}"
+        
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ 任务状态: 成功完成"
+        else
+          echo "❌ 任务状态: 执行失败"
+        fi
