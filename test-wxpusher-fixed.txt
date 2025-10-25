@@ -1,0 +1,1 @@
+Trigger updated workflow with hardcoded AppToken
