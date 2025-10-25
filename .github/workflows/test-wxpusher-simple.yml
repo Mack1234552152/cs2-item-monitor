@@ -12,16 +12,17 @@ jobs:
       run: |
         echo "🧪 测试WXpusher通知功能..."
         echo "AppToken: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj"
+        echo "目标UID: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"
         
         # 发送测试消息到WXpusher
         response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
           -H "Content-Type: application/json" \
           -d '{
             "appToken": "AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
-            "content": "🎉 CS2价格监控系统测试通知！\n\n如果您收到此消息，说明WXpusher通知配置成功！\n测试时间: '"$(date)"'",
+            "content": "🎉 CS2价格监控系统测试通知！\n\n如果您收到此消息，说明WXpusher通知配置成功！\n测试时间: '"$(date)"'\n\n📱 来自GitHub Actions的测试消息",
             "summary": "CS2监控测试通知",
-            "contentType": 3,
-            "topicIds": [12345]
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
           }')
         
         echo "API响应: $response"
@@ -32,6 +33,7 @@ jobs:
           echo "## 🎉 通知测试结果" >> $GITHUB_STEP_SUMMARY
           echo "- **测试时间**: $(date)" >> $GITHUB_STEP_SUMMARY
           echo "- **AppToken**: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj" >> $GITHUB_STEP_SUMMARY
+          echo "- **目标UID**: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI" >> $GITHUB_STEP_SUMMARY
           echo "- **状态**: ✅ 成功" >> $GITHUB_STEP_SUMMARY
           echo "- **响应**: $response" >> $GITHUB_STEP_SUMMARY
         else
@@ -39,6 +41,7 @@ jobs:
           echo "## ❌ 通知测试结果" >> $GITHUB_STEP_SUMMARY
           echo "- **测试时间**: $(date)" >> $GITHUB_STEP_SUMMARY
           echo "- **AppToken**: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj" >> $GITHUB_STEP_SUMMARY
+          echo "- **目标UID**: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI" >> $GITHUB_STEP_SUMMARY
           echo "- **状态**: ❌ 失败" >> $GITHUB_STEP_SUMMARY
           echo "- **响应**: $response" >> $GITHUB_STEP_SUMMARY
         fi
