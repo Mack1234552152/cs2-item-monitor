@@ -1,0 +1,50 @@
+name: Simple WXpusher Test Only
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每小时测试一次
+    - cron: '0 * * * *'
+
+jobs:
+  test-wxpusher:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Test WXpusher Direct API
+      run: |
+        echo "🧪 开始测试WXpusher API..."
+        echo "时间: $(date)"
+        
+        # 发送测试消息到WXpusher
+        response=$(curl -s -X POST "https://wxpusher.zjiecode.com/api/send/message" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "appToken": "AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj",
+            "content": "🎯 WXpusher API测试成功！\n\n✅ 这是来自GitHub Actions的直接API测试\n⏰ 测试时间: '"$(date)"'\n🔧 AppToken: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj\n📱 目标UID: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI",
+            "summary": "WXpusher API测试",
+            "contentType": 1,
+            "uids": ["UID_Nkv98Q7XEQcDsvSInIlR10nm33xI"]
+          }')
+        
+        echo "📡 API响应: $response"
+        
+        # 解析响应检查状态
+        if echo "$response" | grep -q '"code":1000'; then
+          echo "✅ WXpusher通知发送成功！"
+          echo "## 🎉 WXpusher API测试结果" >> $GITHUB_STEP_SUMMARY
+          echo "- **测试时间**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- **AppToken**: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj" >> $GITHUB_STEP_SUMMARY
+          echo "- **目标UID**: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI" >> $GITHUB_STEP_SUMMARY
+          echo "- **状态**: ✅ 成功发送" >> $GITHUB_STEP_SUMMARY
+          echo "- **完整响应**: $response" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ WXpusher通知发送失败！"
+          echo "## ❌ WXpusher API测试结果" >> $GITHUB_STEP_SUMMARY
+          echo "- **测试时间**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "- **AppToken**: AT_MGRDCtFJyM0GSpNDL5Kx3veU7WVpc3nj" >> $GITHUB_STEP_SUMMARY
+          echo "- **目标UID**: UID_Nkv98Q7XEQcDsvSInIlR10nm33xI" >> $GITHUB_STEP_SUMMARY
+          echo "- **状态**: ❌ 发送失败" >> $GITHUB_STEP_SUMMARY
+          echo "- **错误响应**: $response" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
