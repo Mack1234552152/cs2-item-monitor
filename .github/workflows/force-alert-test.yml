@@ -1,0 +1,139 @@
+name: Force Price Alert Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_alert:
+        description: '是否发送测试价格预警'
+        required: false
+        default: 'yes'
+        type: choice
+        options:
+          - yes
+          - no
+
+jobs:
+  force-alert-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create config
+      run: |
+        cat > config/config.json << EOF
+        {
+          "api": {
+            "csqaq": {
+              "baseUrl": "https://api.csqaq.com/api/v1",
+              "token": "JOVN71P7T388E2N1G1H6W5A0",
+              "whitelist_ip": "111.19.113.82"
+            }
+          },
+          "notification": {
+            "wxpusher": {
+              "appToken": "${{ secrets.WXPUSHER_APP_TOKEN }}",
+              "baseUrl": "https://wxpusher.zjiecode.com"
+            }
+          }
+        }
+        EOF
+        
+    - name: Create test alert script
+      run: |
+        cat > force-test-alert.js << 'EOF'
+        const WXPusher = require('./src/notification/wxpusher');
+        
+        console.log('🧪 强制触发价格预警测试...');
+        
+        const notifier = new WXPusher();
+        
+        // 创建测试价格预警数据
+        const testAlert = {
+          itemName: 'AK-47 | 红线 (测试预警)',
+          platform: 'Steam市场',
+          currentPrice: 158.50,
+          historicalLow: 180.00,
+          discount: 0.12, // 12%折扣
+          url: 'https://example.com/test'
+        };
+        
+        console.log('📤 测试预警数据:');
+        console.log('- 饰品:', testAlert.itemName);
+        console.log('- 平台:', testAlert.platform);
+        console.log('- 当前价格: ¥' + testAlert.currentPrice);
+        console.log('- 历史最低: ¥' + testAlert.historicalLow);
+        console.log('- 折扣:', (testAlert.discount * 100).toFixed(1) + '%');
+        
+        async function sendTestAlert() {
+          try {
+            console.log('📱 发送测试价格预警...');
+            
+            const result = await notifier.sendPriceAlert(testAlert);
+            
+            console.log('✅ 价格预警发送结果:', result);
+            
+            if (result && result.code === 1000) {
+              console.log('🎉 价格预警发送成功！');
+              console.log('请检查您的微信是否收到预警消息');
+            } else {
+              console.error('❌ 价格预警发送失败:', result ? result.msg : '未知错误');
+            }
+            
+          } catch (error) {
+            console.error('❌ 发送价格预警时出错:', error.message);
+            
+            if (error.response) {
+              console.error('HTTP状态码:', error.response.status);
+              console.error('响应数据:', error.response.data);
+            }
+            
+            process.exit(1);
+          }
+        }
+        
+        sendTestAlert();
+        EOF
+        
+    - name: Test WXpusher configuration
+      run: |
+        echo "## 🔧 WXpusher配置检查" >> $GITHUB_STEP_SUMMARY
+        if [ -z "${{ secrets.WXPUSHER_APP_TOKEN }}" ]; then
+          echo "❌ **WXPUSHER_APP_TOKEN 未配置**" >> $GITHUB_STEP_SUMMARY
+          echo "请在 GitHub 仓库设置中添加 WXPUSHER_APP_TOKEN" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ **WXPUSHER_APP_TOKEN 已配置**" >> $GITHUB_STEP_SUMMARY
+          echo "Token长度: $(echo -n "${{ secrets.WXPUSHER_APP_TOKEN }}" | wc -c) 字符" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Send test alert
+      if: github.event.inputs.send_alert == 'yes' || github.event.inputs.send_alert == ''
+      env:
+        WXPUSHER_APP_TOKEN: ${{ secrets.WXPUSHER_APP_TOKEN }}
+      run: |
+        echo "## 📱 强制价格预警测试" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "执行时间: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        node force-test-alert.js 2>&1 | tee /tmp/alert-test.log
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Upload test logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: force-alert-test-logs-${{ github.run_number }}
+        path: /tmp/alert-test.log
+        retention-days: 3
