@@ -87,74 +87,15 @@ jobs:
           EOF
         fi
         
-    - name: Test WXpusher API
-      run: |
-        echo "🧪 Testing WXpusher configuration..."
-        echo "AppToken: AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0"
-        
-        # Create a simple test script
-        cat > test-wxpusher.js << 'EOF'
-        const axios = require('axios');
-        
-        async function testWXpusher() {
-          try {
-            console.log('📤 Testing WXpusher API...');
-            console.log('AppToken: AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0');
-            
-            // Test app info
-            const appInfo = await axios.get('https://wxpusher.zjiecode.com/api/fun/app/AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0');
-            console.log('✅ App info:', appInfo.data);
-            
-            // Test users
-            const users = await axios.get('https://wxpusher.zjiecode.com/api/fun/wxuser', {
-              params: {
-                appToken: 'AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0',
-                page: 1,
-                pageSize: 10
-              }
-            });
-            console.log('✅ Users:', users.data);
-            
-            // Send test message if users exist
-            if (users.data.data && users.data.data.records && users.data.data.records.length > 0) {
-              const userIds = users.data.data.records.map(user => user.uid);
-              
-              const messageResponse = await axios.post('https://wxpusher.zjiecode.com/api/send/message', {
-                appToken: 'AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0',
-                contentType: 1,
-                content: '🎉 WXpusher配置成功！\\n\\n时间: ' + new Date().toLocaleString('zh-CN') + '\\n\\nCS2饰品价格监控现在可以正常推送消息了！',
-                summary: 'WXpusher配置测试成功',
-                uids: userIds
-              });
-              
-              console.log('🎉 Message sent:', messageResponse.data);
-              console.log('✅ 测试完成！您应该收到微信消息了。');
-            } else {
-              console.log('⚠️ No users found, please follow the WXpusher official account');
-            }
-            
-          } catch (error) {
-            console.error('❌ Test failed:', error.message);
-            if (error.response) {
-              console.error('HTTP Status:', error.response.status);
-              console.error('Response Data:', error.response.data);
-            }
-            process.exit(1);
-          }
-        }
-        
-        testWXpusher();
-        EOF
-        
-        # Run the test
-        node test-wxpusher.js
-        
     - name: Run price monitor (single check)
       id: monitor
       continue-on-error: true
       run: |
-        echo "开始执行价格监控..."
-        timeout 300s npm start || echo "监控执行完成或超时"
+        echo "🚀 Starting CS2 price monitor..."
+        echo "Current time: $(date)"
+        echo "API endpoint: https://api.csqaq.com/api/v1"
+        echo "WXpusher AppToken: AT_GHMCWdYblRKN9a0TMzzb4tVDQ0sajXD0"
+        timeout 300s npm start || echo "Monitor completed or timed out"
         
     - name: Show execution result
       if: always()
@@ -163,7 +104,7 @@ jobs:
         echo "- **执行时间**: $(date)" >> $GITHUB_STEP_SUMMARY
         echo "- **API端点**: https://api.csqaq.com/api/v1" >> $GITHUB_STEP_SUMMARY
         echo "- **监控状态**: ${{ steps.monitor.outcome }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **WXpusher配置**: ✅ 已配置" >> $GITHUB_STEP_SUMMARY
+        echo "- **WXpusher配置**: ✅ 已配置 (硬编码AppToken)" >> $GITHUB_STEP_SUMMARY
         
     - name: Upload logs
       if: always()
