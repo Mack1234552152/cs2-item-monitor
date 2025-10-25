@@ -3,7 +3,7 @@ const config = require('../../config/config.json');
 
 class CSQAQApi {
   constructor() {
-    this.baseUrl = config.api.csqaq.baseUrl || 'https://csqaq.com/proxies/api/v1';
+    this.baseUrl = config.api.csqaq.baseUrl || 'https://api.csqaq.com/api/v1';
     this.token = config.api.csqaq.token;
     this.client = axios.create({
       baseURL: this.baseUrl,
@@ -15,6 +15,23 @@ class CSQAQApi {
         'Referer': 'https://csqaq.com/',
         'Origin': 'https://csqaq.com'
       }
+    });
+
+    // 添加请求拦截器用于速率限制
+    this.lastRequestTime = 0;
+    this.minRequestInterval = 1000; // CSQAQ API限制：1请求/秒
+
+    this.client.interceptors.request.use(async (config) => {
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        const waitTime = this.minRequestInterval - timeSinceLastRequest;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+      this.lastRequestTime = Date.now();
+      return config;
     });
   }
 
