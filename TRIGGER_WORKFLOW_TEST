@@ -1,0 +1,3 @@
+测试新的价格监控工作流
+时间: $(date)
+工作流: price-monitor.yml
