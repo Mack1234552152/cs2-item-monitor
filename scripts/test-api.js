@@ -1,4 +1,6 @@
 const CSQAQApi = require('../src/api/csqaq');
+const TestResultsNotifier = require('./send-test-results');
+const fs = require('fs');
 
 class APITester {
   constructor() {
@@ -95,6 +97,8 @@ class APITester {
     console.log(`   - 令牌状态: ${this.api.token ? '已配置' : '未配置'}`);
     console.log(`   - 测试时间: ${new Date().toISOString()}\n`);
 
+    let allTestsPassed = true;
+
     try {
       // 运行所有测试
       await this.testAPIConnection();
@@ -112,19 +116,74 @@ class APITester {
 
       if (this.testResults.failed === 0) {
         console.log('\n🎉 所有测试通过！API集成配置正确。');
+        console.log('📱 正在发送测试结果通知...');
+        
+        // 保存测试结果到文件
+        this.saveTestResults();
+        
+        // 尝试发送通知
+        try {
+          const notifier = new TestResultsNotifier();
+          await notifier.sendTestResults(this.testResults);
+          console.log('✅ 测试结果通知已发送到WXpusher');
+        } catch (notifyError) {
+          console.log('⚠️ 通知发送失败:', notifyError.message);
+        }
+        
         process.exit(0);
       } else {
         console.log('\n⚠️ 部分测试失败，请检查配置。');
+        console.log('📱 正在发送失败通知...');
+        
+        // 保存测试结果到文件
+        this.saveTestResults();
+        
+        // 尝试发送通知
+        try {
+          const notifier = new TestResultsNotifier();
+          await notifier.sendTestResults(this.testResults);
+          console.log('✅ 测试结果通知已发送到WXpusher');
+        } catch (notifyError) {
+          console.log('⚠️ 通知发送失败:', notifyError.message);
+        }
+        
         process.exit(1);
       }
 
     } catch (error) {
       console.log('\n💥 测试过程中发生严重错误:', error.message);
+      console.log('📱 正在发送错误通知...');
+      
+      // 保存测试结果到文件
+      this.saveTestResults();
+      
+      // 尝试发送错误通知
+      try {
+        const notifier = new TestResultsNotifier();
+        await notifier.sendApiConnectionError(error);
+        console.log('✅ 错误通知已发送到WXpusher');
+      } catch (notifyError) {
+        console.log('⚠️ 错误通知发送失败:', notifyError.message);
+      }
+      
       process.exit(1);
+    }
+  }
+
+  saveTestResults() {
+    try {
+      fs.writeFileSync('test-results.json', JSON.stringify(this.testResults, null, 2));
+      console.log('📁 测试结果已保存到 test-results.json');
+    } catch (error) {
+      console.log('⚠️ 保存测试结果失败:', error.message);
     }
   }
 }
 
 // 运行测试
-const tester = new APITester();
-tester.runAllTests().catch(console.error);
+if (require.main === module) {
+  const tester = new APITester();
+  tester.runAllTests().catch(console.error);
+}
+
+module.exports = APITester;
