@@ -3,13 +3,14 @@ const config = require('../../config/config.json');
 
 class CSQAQApi {
   constructor() {
-    this.baseUrl = config.api.csqaq.baseUrl || 'https://api.csqaq.com/api/v1';
+    this.baseUrl = config.api.csqaq.baseUrl || 'https://api.csqaq.com';
     this.token = config.api.csqaq.token;
+    this.endpoint = config.api.csqaq.endpoint || '/api/v1/goods/get_all_goods_info';
     this.client = axios.create({
       baseURL: this.baseUrl,
       timeout: 30000,
       headers: {
-        'ApiToken': this.token,
+        'ApiToken': this.token,  // 使用正确的ApiToken header
         'Content-Type': 'application/json',
         'User-Agent': 'CS2-Price-Monitor/1.0.0',
         'Referer': 'https://csqaq.com/',
@@ -20,7 +21,6 @@ class CSQAQApi {
     // 添加请求拦截器用于速率限制
     this.lastRequestTime = 0;
     this.minRequestInterval = 1000; // CSQAQ API限制：1请求/秒
-
     this.client.interceptors.request.use(async (config) => {
       const now = Date.now();
       const timeSinceLastRequest = now - this.lastRequestTime;
@@ -33,6 +33,40 @@ class CSQAQApi {
       this.lastRequestTime = Date.now();
       return config;
     });
+  }
+
+  /**
+   * 测试API连接
+   * @returns {Promise<Object>}
+   */
+  async testConnection() {
+    try {
+      console.log('🔍 测试CSQAQ API连接...');
+      console.log(`API端点: ${this.baseUrl}${this.endpoint}`);
+      console.log(`Token: ${this.token.substring(0, 10)}...`);
+      
+      // 使用正确的端点进行测试
+      const response = await this.client.post(this.endpoint, {
+        limit: 1,
+        page: 1
+      });
+      
+      console.log('✅ API测试成功');
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('❌ API测试失败:', error.message);
+      if (error.response) {
+        console.error('响应状态:', error.response.status);
+        console.error('响应数据:', error.response.data);
+      }
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**
@@ -90,7 +124,7 @@ class CSQAQApi {
     try {
       const response = await this.client.post('/monitor/rank', {
         ...params,
-        token: this.token
+        token: this.token  // 某些端点可能需要token在body中
       });
       return response.data;
     } catch (error) {
@@ -118,14 +152,25 @@ class CSQAQApi {
   }
 
   /**
-   * 获取单件饰品数据
+   * 获取单件饰品数据 - 使用正确的端点
    * @param {number} itemId - 饰品ID
    * @param {string} platform - 平台 (youyoupin, buff, steam)
    * @returns {Promise<Object>}
    */
   async getItemData(itemId, platform = 'steam') {
     try {
-      // 使用实际可用的API端点获取数据
+      // 首先尝试从批量API获取数据
+      const batchResponse = await this.client.post(this.endpoint, {
+        item_ids: [itemId],
+        limit: 1,
+        page: 1
+      });
+      
+      if (batchResponse.data && batchResponse.data.data && batchResponse.data.data.length > 0) {
+        return batchResponse.data.data.find(item => item.id == itemId) || batchResponse.data.data[0];
+      }
+      
+      // 如果批量API失败，回退到旧方法
       const response = await this.getSubData(itemId, 'daily');
       return response;
     } catch (error) {
@@ -142,12 +187,13 @@ class CSQAQApi {
    */
   async getBatchItemPrices(itemIds, platform = 'steam') {
     try {
-      // 使用监控排行榜API来获取批量数据
-      const response = await this.getMonitorRank({
+      // 使用正确的批量API端点
+      const response = await this.client.post(this.endpoint, {
         item_ids: itemIds,
-        platform: platform
+        limit: itemIds.length,
+        page: 1
       });
-      return response;
+      return response.data;
     } catch (error) {
       console.error(`批量获取饰品价格失败 (平台: ${platform}):`, error.message);
       throw error;
@@ -282,11 +328,11 @@ class CSQAQApi {
     if (!marketData || !marketData.data || !Array.isArray(marketData.data)) {
       return null;
     }
-    
+
     const prices = marketData.data.map(item => {
       return item.price || item.current_price || item.value;
     }).filter(price => price && price > 0);
-    
+
     return prices.length > 0 ? Math.min(...prices) : null;
   }
 
